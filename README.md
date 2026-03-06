@@ -24,6 +24,10 @@ A Model Context Protocol server that provides access to your iTerm session.
 ### Tools
 - `list_sessions` - Lists available iTerm windows/tabs/sessions (window id, tab index/name, session id, tty).
 - `select_session` - Sets a default target session for subsequent tool calls (or clears it).
+- `list_session_routes` - Lists named host/role routes and their mapped target sessions.
+- `set_session_route` - Creates or updates a named route (for example, `lpmg01:ops`) to a target session.
+- `remove_session_route` - Removes one route by key.
+- `clear_session_routes` - Removes all routes.
 - `write_to_terminal` - Writes to the active iTerm terminal, often used to run a command. Returns the number of lines of output produced by the command.
 - `read_terminal_output` - Reads the requested number of lines from the active iTerm terminal.
 - `send_control_character` - Sends a control character to the active iTerm terminal.
@@ -45,8 +49,20 @@ Rules:
 
 - `sessionId` cannot be combined with `windowId`/`tabId`.
 - `tabId` requires `windowId`.
-- If no per-call args are provided, the selected default target is used.
-- If no selected target exists, behavior falls back to front/current session.
+- Route tools support host/role routing across multiple tabs for the same host.
+- Target precedence is:
+  1. per-call explicit target (`sessionId` or `windowId` + `tabId`)
+  2. per-call `routeKey`
+  3. selected default session (`select_session`)
+  4. route lookup by per-call `host`/`role`
+  5. front/current session fallback
+
+Example for two tabs on the same host:
+
+1. Set route `lpmg01:ops` to one tab/session.
+2. Set route `lpmg01:logs` to another tab/session.
+3. Run calls with `routeKey=lpmg01:ops` or `routeKey=lpmg01:logs`.
+4. For one-off manual override, pass explicit `sessionId` in that call.
 
 ### Long Command Best Practices
 
@@ -150,12 +166,16 @@ The Inspector will provide a URL to access debugging tools in your browser.
 
 ### 2026-03-06
 
-- Version bump: `1.3.0`.
+- Version bump: `1.4.0`.
 - Improved multiline command safety in `CommandExecutor` by escaping single quotes in per-line AppleScript string escaping.
 - Added explicit session-targeting flow:
   - `list_sessions` to discover targets
   - `select_session` to set default target
   - per-call target args for write/read/control tools
+- Added route-based multi-tab targeting:
+  - `set_session_route`, `list_session_routes`, `remove_session_route`, `clear_session_routes`
+  - route precedence and host/role hint lookup
+  - manual per-call override support with explicit targets
 - Added runtime `sessionId` resolution to active `windowId`/`tabId` before execution to ensure robust targeted operations.
 - Verified live smoke flow:
   - tool discovery includes `list_sessions` and `select_session`
