@@ -26,6 +26,31 @@ A Model Context Protocol server that provides access to your iTerm session.
 - `read_terminal_output` - Reads the requested number of lines from the active iTerm terminal.
 - `send_control_character` - Sends a control character to the active iTerm terminal.
 
+### Long Command Best Practices
+
+For complex shell programs (especially long `awk`, `sed`, or nested quote payloads), avoid sending one very large `write_to_terminal` call.
+
+Recommended operational pattern:
+
+1. Start a heredoc in the terminal:
+   `cat >/tmp/iterm-mcp-job.sh <<'EOF'`
+2. Send script contents in multiple small `write_to_terminal` calls.
+3. Close heredoc with `EOF`.
+4. Execute with `bash /tmp/iterm-mcp-job.sh`.
+5. Poll output with `read_terminal_output` using small tail windows (for example, 25 to 200 lines).
+6. Use `send_control_character` (`C`) to interrupt long-running work when needed.
+
+Why this works better:
+
+- It reduces AppleScript/shell quoting stress from giant single payloads.
+- It makes failures easier to isolate and retry.
+- It keeps token usage predictable by reading only the output needed.
+
+Implementation note:
+
+- Multiline command escaping includes shell-safe handling for single quotes.
+- Even with this, chunked script delivery is still the most reliable approach for very long commands.
+
 ### Requirements
 
 * iTerm2 must be running
@@ -51,6 +76,15 @@ On Windows: `%APPDATA%/Claude/claude_desktop_config.json`
     }
   }
 }
+```
+
+To use with Codex (`~/.codex/config.toml`), add:
+
+```toml
+[mcp_servers.iterm-mcp]
+command = "bash"
+args = ["-lc", "mkdir -p /Volumes/Data/_ai/mcp-data/iterm-mcp && cd /Volumes/Data/_ai/mcp-data/iterm-mcp && exec npx -y iterm-mcp"]
+startup_timeout_sec = 120
 ```
 
 ### Installing via Smithery
@@ -89,3 +123,15 @@ yarn debug <command>
 ```
 
 The Inspector will provide a URL to access debugging tools in your browser.
+
+## Enhancement Notes
+
+### 2026-03-06
+
+- Improved multiline command safety in `CommandExecutor` by escaping single quotes in per-line AppleScript string escaping.
+- Added `Long Command Best Practices` guidance:
+  - use chunked `write_to_terminal` calls
+  - prefer heredoc script delivery for complex shell payloads
+  - poll output with `read_terminal_output`
+  - interrupt with `send_control_character` when required
+- Added Codex setup example with persistent MCP data root at `/Volumes/Data/_ai/mcp-data/iterm-mcp`.

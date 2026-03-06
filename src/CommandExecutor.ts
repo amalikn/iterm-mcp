@@ -179,6 +179,7 @@ class CommandExecutor {
    * in AppleScript strings:
    * - Backslashes are doubled to avoid escape sequence interpretation
    * - Double quotes are escaped to avoid prematurely terminating the string
+   * - Single quotes are escaped for the shell context used by osascript invocation
    * - Tabs are replaced with their escape sequence
    * 
    * @param str The string to escape (should not contain newlines)
@@ -189,6 +190,7 @@ class CommandExecutor {
     return str
       .replace(/\\/g, '\\\\')  // Double backslashes
       .replace(/"/g, '\\"')    // Escape double quotes
+      .replace(/'/g, "'\\''")  // Escape single quotes for shell-safe osascript execution
       .replace(/\t/g, '\\t');  // Handle tabs
   }
 
