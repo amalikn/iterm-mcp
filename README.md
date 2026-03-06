@@ -22,9 +22,31 @@ A Model Context Protocol server that provides access to your iTerm session.
 * For multi-step tasks, you may need to interrupt the model if it goes off track. Start with smaller, focused tasks until you're familiar with how the model behaves. 
 
 ### Tools
+- `list_sessions` - Lists available iTerm windows/tabs/sessions (window id, tab index/name, session id, tty).
+- `select_session` - Sets a default target session for subsequent tool calls (or clears it).
 - `write_to_terminal` - Writes to the active iTerm terminal, often used to run a command. Returns the number of lines of output produced by the command.
 - `read_terminal_output` - Reads the requested number of lines from the active iTerm terminal.
 - `send_control_character` - Sends a control character to the active iTerm terminal.
+
+### Session Targeting
+
+You can now target sessions explicitly instead of relying on front/current selection.
+
+Flow:
+
+1. Call `list_sessions` and pick a target.
+2. Call `select_session` with either:
+   - `sessionId`, or
+   - `windowId` (optionally with `tabId`)
+3. Use `write_to_terminal`, `read_terminal_output`, and `send_control_character`.
+4. Optionally override the selected default by passing per-call target args (`windowId`, `tabId`, `sessionId`).
+
+Rules:
+
+- `sessionId` cannot be combined with `windowId`/`tabId`.
+- `tabId` requires `windowId`.
+- If no per-call args are provided, the selected default target is used.
+- If no selected target exists, behavior falls back to front/current session.
 
 ### Long Command Best Practices
 
@@ -128,7 +150,17 @@ The Inspector will provide a URL to access debugging tools in your browser.
 
 ### 2026-03-06
 
+- Version bump: `1.3.0`.
 - Improved multiline command safety in `CommandExecutor` by escaping single quotes in per-line AppleScript string escaping.
+- Added explicit session-targeting flow:
+  - `list_sessions` to discover targets
+  - `select_session` to set default target
+  - per-call target args for write/read/control tools
+- Added runtime `sessionId` resolution to active `windowId`/`tabId` before execution to ensure robust targeted operations.
+- Verified live smoke flow:
+  - tool discovery includes `list_sessions` and `select_session`
+  - targeted write/read by `sessionId` succeeds
+  - selected default target read succeeds
 - Added `Long Command Best Practices` guidance:
   - use chunked `write_to_terminal` calls
   - prefer heredoc script delivery for complex shell payloads

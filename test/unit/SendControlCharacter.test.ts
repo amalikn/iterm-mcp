@@ -85,4 +85,11 @@ describe('SendControlCharacter', () => {
       'Failed to send control character: Command execution failed'
     );
   });
-});
+
+  test('should target explicit session when provided', async () => {
+    await sendControlCharacter.send('C', { sessionId: 'session-123' });
+    expect(sendControlCharacter.mockExecuteCommand).toHaveBeenCalledWith(
+      expect.stringContaining('first session whose id is "session-123"')
+    );
+  });
+}); 

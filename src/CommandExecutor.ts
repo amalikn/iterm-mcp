@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { openSync, closeSync } from 'node:fs';
 import ProcessTracker from './ProcessTracker.js';
 import TtyOutputReader from './TtyOutputReader.js';
+import { buildSessionReference, type ItermSessionTarget } from './ItermTarget.js';
 
 /**
  * CommandExecutor handles sending commands to iTerm2 via AppleScript.
@@ -35,27 +36,28 @@ class CommandExecutor {
    * @param command The command to execute (can contain newlines)
    * @returns A promise that resolves to the terminal output after command execution
    */
-  async executeCommand(command: string): Promise<string> {
+  async executeCommand(command: string, target?: ItermSessionTarget): Promise<string> {
     const escapedCommand = this.escapeForAppleScript(command);
+    const sessionRef = buildSessionReference(target);
     
     try {
       // Check if this is a multiline command (which would have been processed differently)
       if (command.includes('\n')) {
         // For multiline text, we use parentheses around our prepared string expression
         // This allows AppleScript to evaluate the string concatenation expression
-        await this._execPromise(`/usr/bin/osascript -e 'tell application "iTerm2" to tell current session of current window to write text (${escapedCommand})'`);
+        await this._execPromise(`/usr/bin/osascript -e 'tell application "iTerm2" to tell ${sessionRef} to write text (${escapedCommand})'`);
       } else {
         // For single line commands, we can use the standard approach with quoted strings
-        await this._execPromise(`/usr/bin/osascript -e 'tell application "iTerm2" to tell current session of current window to write text "${escapedCommand}"'`);
+        await this._execPromise(`/usr/bin/osascript -e 'tell application "iTerm2" to tell ${sessionRef} to write text "${escapedCommand}"'`);
       }
       
       // Wait until iTerm2 reports that command processing is complete
-      while (await this.isProcessing()) {
+      while (await this.isProcessing(target)) {
         await sleep(100);
       }
       
       // Get the TTY path and check if it's waiting for user input
-      const ttyPath = await this.retrieveTtyPath();
+      const ttyPath = await this.retrieveTtyPath(target);
       while (await this.isWaitingForUserInput(ttyPath) === false) {
         await sleep(100);
       }
@@ -64,7 +66,7 @@ class CommandExecutor {
       await sleep(200);
       
       // Retrieve the terminal output after command execution
-      const afterCommandBuffer = await TtyOutputReader.retrieveBuffer()
+      const afterCommandBuffer = await TtyOutputReader.retrieveBuffer(target)
       return afterCommandBuffer
     } catch (error: unknown) {
       throw new Error(`Failed to execute command: ${(error as Error).message}`);
@@ -194,18 +196,20 @@ class CommandExecutor {
       .replace(/\t/g, '\\t');  // Handle tabs
   }
 
-  private async retrieveTtyPath(): Promise<string> {
+  private async retrieveTtyPath(target?: ItermSessionTarget): Promise<string> {
+    const sessionRef = buildSessionReference(target);
     try {
-      const { stdout } = await this._execPromise(`/usr/bin/osascript -e 'tell application "iTerm2" to tell current session of current window to get tty'`);
+      const { stdout } = await this._execPromise(`/usr/bin/osascript -e 'tell application "iTerm2" to tell ${sessionRef} to get tty'`);
       return stdout.trim();
     } catch (error: unknown) {
       throw new Error(`Failed to retrieve TTY path: ${(error as Error).message}`);
     }
   }
 
-  private async isProcessing(): Promise<boolean> {
+  private async isProcessing(target?: ItermSessionTarget): Promise<boolean> {
+    const sessionRef = buildSessionReference(target);
     try {
-      const { stdout } = await this._execPromise(`/usr/bin/osascript -e 'tell application "iTerm2" to tell current session of current window to get is processing'`);
+      const { stdout } = await this._execPromise(`/usr/bin/osascript -e 'tell application "iTerm2" to tell ${sessionRef} to get is processing'`);
       return stdout.trim() === 'true';
     } catch (error: unknown) {
       throw new Error(`Failed to check processing status: ${(error as Error).message}`);

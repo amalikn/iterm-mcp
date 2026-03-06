@@ -57,6 +57,15 @@ describe('CommandExecutor', () => {
     expect(calledWith).toBeTruthy();
   });
 
+  test('executeCommand targets explicit session when provided', async () => {
+    const testCommand = 'echo "targeted"';
+    await commandExecutor.executeCommand(testCommand, { sessionId: 'session-123' });
+    const calledWith = mockExecPromiseFn.mock.calls.find(call =>
+      call[0].includes('first session whose id is "session-123"')
+    );
+    expect(calledWith).toBeTruthy();
+  });
+
   test('escapeForAppleScript handles various Unicode characters', async () => {
     const testCommand = 'echo 🚀 café 中文 🎯';
     const escapedCommand = commandExecutor.escapeForAppleScript(testCommand);

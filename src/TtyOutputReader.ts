@@ -1,11 +1,12 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { buildSessionReference, type ItermSessionTarget } from './ItermTarget.js';
 
 const execPromise = promisify(exec);
 
 export default class TtyOutputReader {
-  static async call(linesOfOutput?: number) {
-    const buffer = await this.retrieveBuffer();
+  static async call(linesOfOutput?: number, target?: ItermSessionTarget) {
+    const buffer = await this.retrieveBuffer(target);
     if (!linesOfOutput) {
       return buffer;
     }
@@ -13,20 +14,20 @@ export default class TtyOutputReader {
     return lines.slice(-linesOfOutput - 1).join('\n');
   }
 
-  static async retrieveBuffer(): Promise<string> {
+  static async retrieveBuffer(target?: ItermSessionTarget): Promise<string> {
+    const sessionRef = buildSessionReference(target);
     const ascript = `
       tell application "iTerm2"
-        tell front window
-          tell current session of current tab
-            set numRows to number of rows
-            set allContent to contents
-            return allContent
-          end tell
+        tell ${sessionRef}
+          set numRows to number of rows
+          set allContent to contents
+          return allContent
         end tell
       end tell
     `;
     
-    const { stdout: finalContent } = await execPromise(`osascript -e '${ascript}'`);
+    const escapedAscript = ascript.replace(/'/g, "'\\''");
+    const { stdout: finalContent } = await execPromise(`osascript -e '${escapedAscript}'`);
     return finalContent.trim();
   }
 }
