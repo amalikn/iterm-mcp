@@ -86,3 +86,4 @@ Auto-maintained by `my-github-mcp` on `git_push`.
 | 2026-03-06T03:35:07.282825+00:00 | main | origin | `936182b2bbcd` | Bump version |
 | 2026-03-06T03:35:07.282825+00:00 | main | origin | `3880d595dc9d` | Improve long-command reliability and document best practices |
 | 2026-03-06T04:25:07.488379+00:00 | main | origin | `1777ae18ee03` | feat: add explicit session targeting tools and bump to v1.3.0 |
+| 2026-03-06T04:37:41.977736+00:00 | main | origin | `e82be8a1d777` | feat: add route-based multi-tab session targeting (v1.4.0) |
